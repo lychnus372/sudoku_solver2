@@ -1,4 +1,6 @@
 let _board;
+let active_cell = -1;
+let textcells;
 
 const initializer = ()=>{
     const board = document.getElementById("board");
@@ -8,88 +10,112 @@ const initializer = ()=>{
     form.appendChild(table);
     board.appendChild(form);
 
+    const textboxes = new Array();
+    textcells = textboxes;
+
     // セルの生成
     for(let i=0;i<9;i++){
         const tr = document.createElement("tr");
         for(let j=0;j<9;j++){
-            const cell = document.createElement("input");
+            const cell = document.createElement("div");
             const th = document.createElement("th");
-            cell.type = "text";
             
-            if((~~(i/3)+~~(j/3))%2===1){
-                cell.className = "noncolored_cell cell";
-            }else{
-                cell.className = "colored_cell cell";
+            //セルクリックされたら、idをメモしておく
+            cell.addEventListener("click", ()=>{
+                cell.style.borderColor = "#8080f0";
+                active_cell = i*9 + j;
+            });
+            
+            if((~~(i/3)+~~(j/3))%2===0){
+                cell.style.background = "#e0e0e0";
             }
+            cell.className = "cell";
             cell.id = "cell" + (i*9+j);
             th.appendChild(cell);
             tr.appendChild(th);
+            textboxes.push(cell);
         }
         table.appendChild(tr);
     }
+    // セル以外がクリックされたら
+    document.addEventListener("click", (event)=>{
+        const path0 = event.path[0];
+        if(path0.className!=="cell"){
+            if(active_cell!==-1){
+                textboxes[active_cell].style.borderColor = "#c0c0c0";
+            }
+            
+            active_cell = -1;
+        }
+    });
 
 
     // 矢印キーが押されたときの挙動
     document.addEventListener("keydown", (event)=>{
         const key = event.keyCode;
-        const element = document.activeElement;
-        if(element.type!=="text"){
+        if(active_cell===-1){
             return;
         }
-        const cellid = parseInt(element.id.substr(4), 10);
-        let newid;
-
+        
         switch(key){
         case 38://上
-            if(cellid<9){
-                newid = cellid + 72;
+            textboxes[active_cell].style.borderColor = "#c0c0c0";
+            if(active_cell<9){
+                active_cell += 72;
             }else{
-                newid = cellid - 9;
+                active_cell += - 9;
             }
-            document.getElementById("cell" + newid).focus();
+            textboxes[active_cell].style.borderColor = "#8080f0";
+            event.preventDefault();
             break;
         case 40://下
-            if(cellid>72){
-                newid = cellid - 72;
+            textboxes[active_cell].style.borderColor = "#c0c0c0";
+            if(active_cell>72){
+                active_cell += -72;
             }else{
-                newid = cellid + 9;
+                active_cell += 9;
             }
-            document.getElementById("cell" + newid).focus();
+            textboxes[active_cell].style.borderColor = "#8080f0";
+            event.preventDefault();
             break;
         case 37://左
-            if(cellid%9===0){
-                newid = cellid + 8;
+            textboxes[active_cell].style.borderColor = "#c0c0c0";
+            if(active_cell%9===0){
+                active_cell += 8;
             }else{
-                newid = cellid - 1;
+                active_cell += -1;
             }
-            document.getElementById("cell" + newid).focus();
+            textboxes[active_cell].style.borderColor = "#8080f0";
+            event.preventDefault();
             break;
         case 39://右
-            if(cellid%9===8){
-                newid = cellid - 8;
+            textboxes[active_cell].style.borderColor = "#c0c0c0";
+            if(active_cell%9===8){
+                active_cell += -8;
             }else{
-                newid = cellid + 1;
+                active_cell += 1;
             }
-            document.getElementById("cell" + newid).focus();
+            textboxes[active_cell].style.borderColor = "#8080f0";
+            event.preventDefault();
             break;
         case 49:case 50:case 51:case 52:case 53:case 54:case 55:case 56:case 57:
-            element.value = key - 48;
+            textboxes[active_cell].innerText = key-48;
+            event.preventDefault();
             break;
         case 8: case 46:
-            element.value = "";
+        textboxes[active_cell].innerText = "";
+            event.preventDefault();
             break;
         default:
             break;
         }
-
-        event.preventDefault();
-        
     });
 
 
     // _boardを初期化
     _board = new Sudoku(test);
     _board.showResult();
+
 };
 
 window.onload = initializer;
@@ -108,13 +134,13 @@ const click1 = ()=>{
         console.log("解けない数独です");
     }
 
-    const textboxes = document.getElementsByClassName("cell");
+    const textboxes = textcells;
     for(let i=0;i<9;i++){
         for(let j=0;j<9;j++){
-            textboxes[i*9+j].value = "";
+            textboxes[i*9+j].innerText = "";
             textboxes[i*9+j].style.color = "#000000";
             if(solved_board.cells[i][j]>0){
-                textboxes[i*9+j].value = solved_board.cells[i][j];
+                textboxes[i*9+j].innerText = solved_board.cells[i][j];
                 if(_board.cells[i][j]===0){
                     textboxes[i*9+j].style.color = "#0000ff";
                 }
@@ -130,7 +156,7 @@ const click2 = ()=>{
     if(_board.solved===true){
         _board.showResult();
         _board.solved = false;
-        const textboxes = document.getElementsByClassName("cell");
+        const textboxes = textcells;
         for(const cell of textboxes){
             cell.style.color = "#000000";
         }
@@ -143,14 +169,17 @@ const click3 = ()=>{
     
     _board = new Sudoku();
     _board.showResult();
-    const textboxes = document.getElementsByClassName("cell");
+    _board.solved = false;
+    const textboxes = textcells;
     for(const cell of textboxes){
         cell.style.color = "#000000";
     }
     return;
 };
 
+let count = 0;
 const solve = (board)=>{
+    count++;
     let parent = new Sudoku(board);
 
     do{
@@ -160,31 +189,22 @@ const solve = (board)=>{
     if(parent.isContradicts() || parent.isSolved()){
         return parent;
     }
-
-    for(let i=0;i<9;i++){
-        for(let j=0;j<9;j++){
-            if(parent.cells[i][j]===0){
-                for(let n=0;n<9;n++){
-                    if(parent.prob[i][j][n]===1){
-                        let child = new Sudoku(parent);
-                        child.cells[i][j] = n + 1;
-                        child.eliminatePossibiliy();
-                        child = solve(child);
-                        if(child.isContradicts()){
-                            parent.prob[i][j][n] = 0;
-                        }
-                        if(child.isSolved()){
-                            return child;
-                        }
-                    }
-                }
-            }
+    
+    do{
+        let child = new Sudoku(parent);
+        const [x, y, n] = child.getEasyCell();
+        if(n===-1){
+            return parent;
         }
-    }
-
-
-    return parent;
-
+        child.cells[x][y] = n+1;
+        child = solve(child);
+        if(child.isContradicts()){
+            parent.prob[x][y][n] = 0;
+        }
+        if(child.isSolved()){
+            return child;
+        }
+    }while(true);
 };
 
 class Sudoku {
@@ -238,10 +258,10 @@ class Sudoku {
             }
         }
 
-        const textboxes = document.getElementsByClassName("cell");
+        const textboxes = textcells;
         for(let i=0;i<9;i++){
             for(let j=0;j<9;j++){
-                const value = textboxes[i*9+j].value;
+                const value = textboxes[i*9+j].innerText;
                 const num = parseInt(value, 10);
     
                 switch(num){
@@ -262,6 +282,7 @@ class Sudoku {
         const sudoku = new Sudoku(this);
         const prob = sudoku.prob;
         const cells = sudoku.cells;
+        sudoku.eliminatePossibiliy();
         
         for(let x=0;x<9;x++){
             for(let y=0;y<9;y++){
@@ -462,6 +483,38 @@ class Sudoku {
         return true;
     }
 
+    getEasyCell(){
+        const cells = this.cells;
+        const prob = this.prob;
+        let cell_x,  cell_y, cell_n=-1, min = 10;
+
+        for(let x=0;x<9;x++){
+            for(let y=0;y<9;y++){
+                if(cells[x][y]===0){
+                    let num_prob = 0;
+                    let temp_n;
+                    for(let n=8;n>-1;n--){
+                        if(prob[x][y][n]===1){
+                            num_prob++;
+                            temp_n = n;
+                        }
+                    }
+                    if(num_prob===2){
+                        return [x, y, temp_n];
+                    }
+                    if(num_prob<min && num_prob>1){
+                        cell_x = x;
+                        cell_y = y;
+                        cell_n = temp_n;
+                        min = num_prob;
+                    }
+                }
+            }
+        }
+
+        return [cell_x, cell_y, cell_n];
+    }
+
     getBlockPosition(x, y){
         let X, Y;
         switch(x){
@@ -492,12 +545,12 @@ class Sudoku {
     }
 
     showResult(){
-        const textboxes = document.getElementsByClassName("cell");
+        const textboxes = textcells;
         for(let i=0;i<9;i++){
             for(let j=0;j<9;j++){
-                textboxes[i*9+j].value = "";
+                textboxes[i*9+j].innerText = "";
                 if(this.cells[i][j]>0){
-                    textboxes[i*9+j].value = this.cells[i][j];
+                    textboxes[i*9+j].innerText = this.cells[i][j];
                 }
             }
         }
@@ -506,13 +559,13 @@ class Sudoku {
 
 const test = new Sudoku();
 test.cells = [
-[0, 9, 0, 3, 1, 0, 0, 0, 0],
-[4, 0, 0, 0, 0, 0, 0, 8, 6],
-[0, 0, 0, 0, 0, 0, 0, 0, 7],
-[0, 2, 0, 0, 0, 0, 1, 0, 0],
-[0, 0, 0, 0, 0, 8, 0, 0, 0],
-[0, 0, 0, 6, 0, 0, 0, 0, 0],
-[6, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 9, 0, 2, 0, 0],
-[7, 5, 0, 0, 2, 0, 0, 0, 0]
+    [0, 9, 0, 3, 1, 0, 0, 0, 0],
+    [4, 0, 0, 0, 0, 0, 0, 8, 6],
+    [0, 0, 0, 0, 0, 0, 0, 0, 7],
+    [0, 2, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 8, 0, 0, 0],
+    [0, 0, 0, 6, 0, 0, 0, 0, 0],
+    [6, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 9, 0, 2, 0, 0],
+    [7, 5, 0, 0, 2, 0, 0, 0, 0]
 ]
